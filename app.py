@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime, timedelta
 import random
 import os
+import hashlib
+import secrets
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -21,6 +23,49 @@ loads_db = {}
 negotiations_db = {}
 bookings_db = {}
 call_analytics_db = {}
+
+# API Key Management
+api_keys_db = {
+    # Generate API keys for each endpoint
+    "verify_carrier": "ak_verify_1234567890abcdef",
+    "search_loads": "ak_search_1234567890abcdef", 
+    "load_details": "ak_details_1234567890abcdef",
+    "negotiate": "ak_negotiate_1234567890abcdef",
+    "book_load": "ak_book_1234567890abcdef",
+    "store_call_data": "ak_analytics_1234567890abcdef",
+    "health": "ak_health_1234567890abcdef",
+    "stats": "ak_stats_1234567890abcdef"
+}
+
+def validate_api_key(endpoint_name):
+    """Validate API key for specific endpoint."""
+    api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    if not api_key:
+        return False, "API key required"
+    
+    expected_key = api_keys_db.get(endpoint_name)
+    if not expected_key or api_key != expected_key:
+        return False, "Invalid API key"
+    
+    return True, "Valid API key"
+
+def require_api_key(endpoint_name):
+    """Decorator to require API key for endpoint."""
+    def decorator(f):
+        def decorated_function(*args, **kwargs):
+            is_valid, message = validate_api_key(endpoint_name)
+            if not is_valid:
+                return jsonify({
+                    'success': False,
+                    'error': message,
+                    'endpoint': endpoint_name,
+                    'required_header': 'X-API-Key'
+                }), 401
+            return f(*args, **kwargs)
+        decorated_function.__name__ = f.__name__
+        return decorated_function
+    return decorator
 
 # Initialize mock data when the app starts
 def initialize_mock_data():
@@ -154,6 +199,7 @@ def initialize_mock_data():
 initialize_mock_data()
 
 @app.route('/api/verify-carrier', methods=['POST'])
+@require_api_key('verify_carrier')
 def verify_carrier():
     """
     Verify carrier status using MC number.
@@ -201,6 +247,7 @@ def verify_carrier():
         }), 500
 
 @app.route('/api/search-loads', methods=['POST'])
+@require_api_key('search_loads')
 def search_loads():
     """
     Search for available loads based on criteria.
@@ -274,6 +321,7 @@ def search_loads():
         }), 500
 
 @app.route('/api/load-details/<load_id>', methods=['GET'])
+@require_api_key('load_details')
 def get_load_details(load_id):
     """
     Get detailed information about a specific load.
@@ -312,6 +360,7 @@ def get_load_details(load_id):
         }), 500
 
 @app.route('/api/negotiate', methods=['POST'])
+@require_api_key('negotiate')
 def negotiate_load():
     """
     Handle rate negotiations between carriers and brokers.
@@ -388,6 +437,7 @@ def negotiate_load():
         }), 500
 
 @app.route('/api/book-load', methods=['POST'])
+@require_api_key('book_load')
 def book_load():
     """
     Book a load for a verified carrier.
@@ -465,6 +515,7 @@ def book_load():
         }), 500
 
 @app.route('/api/store-call-data', methods=['POST'])
+@require_api_key('store_call_data')
 def store_call_data():
     """
     Store call analytics data for performance tracking.
@@ -521,6 +572,7 @@ def store_call_data():
         }), 500
 
 @app.route('/api/health', methods=['GET'])
+@require_api_key('health')
 def health_check():
     """Health check endpoint for monitoring."""
     return jsonify({
@@ -538,6 +590,7 @@ def health_check():
     })
 
 @app.route('/api/stats', methods=['GET'])
+@require_api_key('stats')
 def get_stats():
     """Get system statistics for monitoring."""
     return jsonify({
@@ -549,6 +602,94 @@ def get_stats():
         'total_bookings': len(bookings_db),
         'total_negotiations': len(negotiations_db),
         'total_calls_analyzed': len(call_analytics_db)
+    })
+
+@app.route('/api/keys', methods=['GET'])
+def get_api_keys():
+    """Get API keys for all endpoints (for documentation purposes)."""
+    return jsonify({
+        'success': True,
+        'api_keys': {
+            'verify_carrier': api_keys_db['verify_carrier'],
+            'search_loads': api_keys_db['search_loads'],
+            'load_details': api_keys_db['load_details'],
+            'negotiate': api_keys_db['negotiate'],
+            'book_load': api_keys_db['book_load'],
+            'store_call_data': api_keys_db['store_call_data'],
+            'health': api_keys_db['health'],
+            'stats': api_keys_db['stats']
+        },
+        'usage': {
+            'header_name': 'X-API-Key',
+            'alternative_header': 'Authorization: Bearer <key>',
+            'example': 'X-API-Key: ak_verify_1234567890abcdef'
+        }
+    })
+
+@app.route('/api/docs', methods=['GET'])
+def api_documentation():
+    """API documentation with all endpoints and their API keys."""
+    return jsonify({
+        'api_name': 'Carrier Sales Automation API',
+        'version': '1.0.0',
+        'base_url': 'https://carrier-api-834528330838.us-central1.run.app',
+        'authentication': 'API Key required for all endpoints',
+        'endpoints': [
+            {
+                'endpoint': '/api/verify-carrier',
+                'method': 'POST',
+                'api_key': api_keys_db['verify_carrier'],
+                'description': 'Verify carrier using MC number',
+                'required_fields': ['mc_number']
+            },
+            {
+                'endpoint': '/api/search-loads',
+                'method': 'POST',
+                'api_key': api_keys_db['search_loads'],
+                'description': 'Search for available loads',
+                'optional_fields': ['equipment_type', 'origin_preference', 'destination_preference', 'min_rate', 'max_rate', 'max_miles', 'commodity_type']
+            },
+            {
+                'endpoint': '/api/load-details/<load_id>',
+                'method': 'GET',
+                'api_key': api_keys_db['load_details'],
+                'description': 'Get detailed load information',
+                'example': '/api/load-details/L001'
+            },
+            {
+                'endpoint': '/api/negotiate',
+                'method': 'POST',
+                'api_key': api_keys_db['negotiate'],
+                'description': 'Handle rate negotiations',
+                'required_fields': ['load_id', 'counter_offer', 'mc_number']
+            },
+            {
+                'endpoint': '/api/book-load',
+                'method': 'POST',
+                'api_key': api_keys_db['book_load'],
+                'description': 'Book a load for a carrier',
+                'required_fields': ['load_id', 'agreed_rate', 'mc_number']
+            },
+            {
+                'endpoint': '/api/store-call-data',
+                'method': 'POST',
+                'api_key': api_keys_db['store_call_data'],
+                'description': 'Store call analytics data',
+                'required_fields': ['transcript', 'classification', 'sentiment', 'extracted_data', 'call_timestamp', 'call_duration', 'caller_number']
+            },
+            {
+                'endpoint': '/api/health',
+                'method': 'GET',
+                'api_key': api_keys_db['health'],
+                'description': 'Health check endpoint'
+            },
+            {
+                'endpoint': '/api/stats',
+                'method': 'GET',
+                'api_key': api_keys_db['stats'],
+                'description': 'Get system statistics'
+            }
+        ]
     })
 
 if __name__ == '__main__':
