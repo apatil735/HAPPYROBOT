@@ -22,7 +22,7 @@ negotiations_db = {}
 bookings_db = {}
 call_analytics_db = {}
 
-# Mock data initialization
+# Initialize mock data when the app starts
 def initialize_mock_data():
     """Initialize the system with mock data for demonstration."""
     
@@ -149,6 +149,9 @@ def initialize_mock_data():
             "deadhead_miles": 10
         }
     })
+
+# Initialize data when the app starts
+initialize_mock_data()
 
 @app.route('/api/verify-carrier', methods=['POST'])
 def verify_carrier():
