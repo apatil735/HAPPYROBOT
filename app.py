@@ -26,7 +26,7 @@ bookings_db = {}
 call_analytics_db = {}
 
 # FMCSA API Configuration
-FMCSA_API_KEY = os.environ.get('FMCSA_API_KEY', 'your_fmcsa_api_key_here')
+FMCSA_API_KEY = os.environ.get('FMCSA_API_KEY', 'cdc33e44d693a3a58451898d4ec9df862c65b954')
 FMCSA_BASE_URL = "https://mobile.fmcsa.dot.gov/qc/services/carriers"
 
 # API Key Management
