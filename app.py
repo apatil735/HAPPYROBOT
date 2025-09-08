@@ -270,20 +270,34 @@ def verify_carrier():
             fmcsa_result = get_fmcsa_carrier_data(mc_number)
             
             if fmcsa_result['success']:
-                # Process FMCSA data using the correct structure
+                # Process FMCSA data using the correct nested structure
                 fmcsa_data = fmcsa_result['data']
+                carrier_data = fmcsa_data.get('content', {}).get('carrier', {})
+                
                 return jsonify({
                     'success': True,
-                    'verified': fmcsa_data.get('allowToOperate') == 'Y',
+                    'verified': carrier_data.get('allowedToOperate') == 'Y',
                     'carrier_info': {
-                        'mc_number': fmcsa_data.get('mcNumber', mc_number),
-                        'company_name': fmcsa_data.get('legalName', 'Unknown'),
-                        'dot_number': fmcsa_data.get('dotNumber', 'N/A'),
-                        'allowed_to_operate': fmcsa_data.get('allowToOperate') == 'Y',
-                        'out_of_service': fmcsa_data.get('outOfService') == 'Y',
-                        'carrier_operation': fmcsa_data.get('carrierOperation', {}),
-                        'insurance': fmcsa_data.get('insurance', {}),
-                        'safety': fmcsa_data.get('safety', {})
+                        'mc_number': str(carrier_data.get('dotNumber', mc_number)),
+                        'company_name': carrier_data.get('legalName', 'Unknown'),
+                        'dot_number': carrier_data.get('dotNumber', 'N/A'),
+                        'allowed_to_operate': carrier_data.get('allowedToOperate') == 'Y',
+                        'out_of_service': carrier_data.get('oosDate') is not None,
+                        'status_code': carrier_data.get('statusCode', 'Unknown'),
+                        'carrier_operation': carrier_data.get('carrierOperation', {}),
+                        'physical_address': {
+                            'city': carrier_data.get('phyCity', ''),
+                            'state': carrier_data.get('phyState', ''),
+                            'street': carrier_data.get('phyStreet', ''),
+                            'zipcode': carrier_data.get('phyZipcode', '')
+                        },
+                        'safety_data': {
+                            'total_drivers': carrier_data.get('totalDrivers', 0),
+                            'total_power_units': carrier_data.get('totalPowerUnits', 0),
+                            'crash_total': carrier_data.get('crashTotal', 0),
+                            'driver_oos_rate': carrier_data.get('driverOosRate', 0),
+                            'vehicle_oos_rate': carrier_data.get('vehicleOosRate', 0)
+                        }
                     },
                     'message': 'Carrier verification completed using FMCSA data',
                     'data_source': 'FMCSA'
