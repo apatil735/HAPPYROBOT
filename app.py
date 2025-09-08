@@ -48,15 +48,10 @@ def get_fmcsa_carrier_data(mc_number):
         # Remove 'MC' prefix if present
         clean_mc = mc_number.replace('MC', '') if mc_number.startswith('MC') else mc_number
         
-        headers = {
-            'X-API-Key': FMCSA_API_KEY,
-            'Content-Type': 'application/json'
-        }
+        # FMCSA API endpoint with webKey parameter
+        fmcsa_url = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{clean_mc}?webKey={FMCSA_API_KEY}"
         
-        # FMCSA API endpoint for carrier lookup
-        url = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{clean_mc}"
-        
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(fmcsa_url, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
@@ -275,20 +270,20 @@ def verify_carrier():
             fmcsa_result = get_fmcsa_carrier_data(mc_number)
             
             if fmcsa_result['success']:
-                # Process FMCSA data
+                # Process FMCSA data using the correct structure
                 fmcsa_data = fmcsa_result['data']
                 return jsonify({
                     'success': True,
-                    'verified': True,
+                    'verified': fmcsa_data.get('allowToOperate') == 'Y',
                     'carrier_info': {
-                        'mc_number': mc_number,
+                        'mc_number': fmcsa_data.get('mcNumber', mc_number),
                         'company_name': fmcsa_data.get('legalName', 'Unknown'),
                         'dot_number': fmcsa_data.get('dotNumber', 'N/A'),
-                        'status': fmcsa_data.get('carrierOperation', {}).get('carrierOperationStatus', 'Unknown'),
-                        'insurance_valid': fmcsa_data.get('insurance', {}).get('hasInsurance', False),
-                        'safety_rating': fmcsa_data.get('safety', {}).get('rating', 'Not Rated'),
-                        'safety_review_date': fmcsa_data.get('safety', {}).get('reviewDate', 'N/A'),
-                        'out_of_service': fmcsa_data.get('safety', {}).get('outOfService', False)
+                        'allowed_to_operate': fmcsa_data.get('allowToOperate') == 'Y',
+                        'out_of_service': fmcsa_data.get('outOfService') == 'Y',
+                        'carrier_operation': fmcsa_data.get('carrierOperation', {}),
+                        'insurance': fmcsa_data.get('insurance', {}),
+                        'safety': fmcsa_data.get('safety', {})
                     },
                     'message': 'Carrier verification completed using FMCSA data',
                     'data_source': 'FMCSA'
