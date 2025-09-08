@@ -13,6 +13,7 @@ import random
 import os
 import hashlib
 import secrets
+import requests
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -23,6 +24,10 @@ loads_db = {}
 negotiations_db = {}
 bookings_db = {}
 call_analytics_db = {}
+
+# FMCSA API Configuration
+FMCSA_API_KEY = os.environ.get('FMCSA_API_KEY', 'your_fmcsa_api_key_here')
+FMCSA_BASE_URL = "https://mobile.fmcsa.dot.gov/qc/services/carriers"
 
 # API Key Management
 api_keys_db = {
@@ -36,6 +41,52 @@ api_keys_db = {
     "health": "ak_health_1234567890abcdef",
     "stats": "ak_stats_1234567890abcdef"
 }
+
+def get_fmcsa_carrier_data(mc_number):
+    """Get real carrier data from FMCSA API."""
+    try:
+        headers = {
+            'Authorization': f'Bearer {FMCSA_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        # FMCSA API endpoint for carrier lookup
+        url = f"{FMCSA_BASE_URL}/{mc_number}"
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'success': True,
+                'data': data,
+                'source': 'FMCSA'
+            }
+        elif response.status_code == 404:
+            return {
+                'success': False,
+                'error': 'Carrier not found in FMCSA database',
+                'source': 'FMCSA'
+            }
+        else:
+            return {
+                'success': False,
+                'error': f'FMCSA API error: {response.status_code}',
+                'source': 'FMCSA'
+            }
+            
+    except requests.exceptions.RequestException as e:
+        return {
+            'success': False,
+            'error': f'FMCSA API connection failed: {str(e)}',
+            'source': 'FMCSA'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'FMCSA data processing failed: {str(e)}',
+            'source': 'FMCSA'
+        }
 
 def validate_api_key(endpoint_name):
     """Validate API key for specific endpoint."""
@@ -203,11 +254,12 @@ initialize_mock_data()
 def verify_carrier():
     """
     Verify carrier status using MC number.
-    Critical for ensuring only legitimate carriers can book loads.
+    Uses FMCSA API for real data, falls back to mock data.
     """
     try:
         data = request.get_json()
         mc_number = data.get('mc_number')
+        use_fmcsa = data.get('use_fmcsa', True)  # Default to FMCSA
         
         if not mc_number:
             return jsonify({
@@ -215,7 +267,34 @@ def verify_carrier():
                 'error': 'MC number is required'
             }), 400
         
-        # Check if carrier exists
+        # Try FMCSA API first if requested
+        if use_fmcsa and FMCSA_API_KEY != 'your_fmcsa_api_key_here':
+            fmcsa_result = get_fmcsa_carrier_data(mc_number)
+            
+            if fmcsa_result['success']:
+                # Process FMCSA data
+                fmcsa_data = fmcsa_result['data']
+                return jsonify({
+                    'success': True,
+                    'verified': True,
+                    'carrier_info': {
+                        'mc_number': mc_number,
+                        'company_name': fmcsa_data.get('legalName', 'Unknown'),
+                        'dot_number': fmcsa_data.get('dotNumber', 'N/A'),
+                        'status': fmcsa_data.get('carrierOperation', {}).get('carrierOperationStatus', 'Unknown'),
+                        'insurance_valid': fmcsa_data.get('insurance', {}).get('hasInsurance', False),
+                        'safety_rating': fmcsa_data.get('safety', {}).get('rating', 'Not Rated'),
+                        'safety_review_date': fmcsa_data.get('safety', {}).get('reviewDate', 'N/A'),
+                        'out_of_service': fmcsa_data.get('safety', {}).get('outOfService', False)
+                    },
+                    'message': 'Carrier verification completed using FMCSA data',
+                    'data_source': 'FMCSA'
+                })
+            else:
+                # FMCSA failed, fall back to mock data
+                pass
+        
+        # Fallback to mock data
         carrier = carriers_db.get(mc_number)
         
         if not carrier:
@@ -223,10 +302,11 @@ def verify_carrier():
                 'success': False,
                 'verified': False,
                 'message': 'Carrier not found in database',
-                'mc_number': mc_number
+                'mc_number': mc_number,
+                'data_source': 'Mock'
             }), 404
         
-        # Return verification status
+        # Return verification status from mock data
         return jsonify({
             'success': True,
             'verified': carrier['verified'],
@@ -237,7 +317,8 @@ def verify_carrier():
                 'insurance_valid': carrier['insurance_valid'],
                 'safety_rating': carrier['safety_rating']
             },
-            'message': 'Carrier verification completed'
+            'message': 'Carrier verification completed using mock data',
+            'data_source': 'Mock'
         })
         
     except Exception as e:
@@ -625,6 +706,31 @@ def get_api_keys():
             'example': 'X-API-Key: ak_verify_1234567890abcdef'
         }
     })
+
+@app.route('/api/test-fmcsa', methods=['POST'])
+@require_api_key('verify_carrier')
+def test_fmcsa_connection():
+    """Test FMCSA API connection and return status."""
+    try:
+        test_mc = "123456"  # Test MC number
+        result = get_fmcsa_carrier_data(test_mc)
+        
+        return jsonify({
+            'success': True,
+            'fmcsa_status': 'Connected' if result['success'] else 'Failed',
+            'api_key_configured': FMCSA_API_KEY != 'your_fmcsa_api_key_here',
+            'test_result': result,
+            'instructions': {
+                'to_use_fmcsa': 'Set FMCSA_API_KEY environment variable',
+                'to_test_real_carrier': 'Use /api/verify-carrier with use_fmcsa: true'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'FMCSA test failed: {str(e)}'
+        }), 500
 
 @app.route('/api/docs', methods=['GET'])
 def api_documentation():
