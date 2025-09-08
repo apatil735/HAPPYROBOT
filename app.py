@@ -157,6 +157,21 @@ def initialize_mock_data():
                 "phone": "+1-555-0789",
                 "email": "info@jbhunt.com"
             }
+        },
+        "MC-441100": {
+            "mc_number": "MC-441100",
+            "company_name": "INTERNATIONAL RECYCLING INDUSTRIES OF FLORIDA INC",
+            "dot_number": "DOT2345678",
+            "status": "active",
+            "insurance_valid": True,
+            "safety_rating": "A",
+            "verified": True,
+            "allowed_to_operate": True,
+            "data_source": "demo_database",
+            "contact_info": {
+                "phone": "+1-251-555-0199",
+                "email": "dispatch@internationalrecycling.com"
+            }
         }
     })
     
