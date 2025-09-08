@@ -45,13 +45,16 @@ api_keys_db = {
 def get_fmcsa_carrier_data(mc_number):
     """Get real carrier data from FMCSA API."""
     try:
+        # Remove 'MC' prefix if present
+        clean_mc = mc_number.replace('MC', '') if mc_number.startswith('MC') else mc_number
+        
         headers = {
-            'Authorization': f'Bearer {FMCSA_API_KEY}',
+            'X-API-Key': FMCSA_API_KEY,
             'Content-Type': 'application/json'
         }
         
         # FMCSA API endpoint for carrier lookup
-        url = f"{FMCSA_BASE_URL}/{mc_number}"
+        url = f"https://mobile.fmcsa.dot.gov/qc/services/carriers/{clean_mc}"
         
         response = requests.get(url, headers=headers, timeout=10)
         
@@ -71,7 +74,7 @@ def get_fmcsa_carrier_data(mc_number):
         else:
             return {
                 'success': False,
-                'error': f'FMCSA API error: {response.status_code}',
+                'error': f'FMCSA API error: {response.status_code} - {response.text}',
                 'source': 'FMCSA'
             }
             
