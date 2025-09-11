@@ -1,0 +1,62 @@
+[
+  {
+    "load_id": "L001",
+    "origin": "Dallas, TX",
+    "destination": "Houston, TX",
+    "pickup_datetime": "2025-09-10T08:00:00",
+    "delivery_datetime": "2025-09-11T18:00:00",
+    "equipment_type": "Flatbed",
+    "loadboard_rate": 1500,
+    "notes": "Fragile equipment",
+    "weight": 10000,
+    "commodity_type": "Machinery"
+  },
+  {
+    "load_id": "L002",
+    "origin": "Chicago, IL",
+    "destination": "Detroit, MI",
+    "pickup_datetime": "2025-09-12T07:00:00",
+    "delivery_datetime": "2025-09-13T20:00:00",
+    "equipment_type": "Reefer",
+    "loadboard_rate": 1200,
+    "notes": "Perishable goods",
+    "weight": 8000,
+    "commodity_type": "Food"
+  },
+  {
+    "load_id": "L003",
+    "origin": "Los Angeles, CA",
+    "destination": "Phoenix, AZ",
+    "pickup_datetime": "2025-09-14T09:00:00",
+    "delivery_datetime": "2025-09-15T16:00:00",
+    "equipment_type": "Dry Van",
+    "loadboard_rate": 800,
+    "notes": "General freight",
+    "weight": 15000,
+    "commodity_type": "Electronics"
+  },
+  {
+    "load_id": "L004",
+    "origin": "Miami, FL",
+    "destination": "Atlanta, GA",
+    "pickup_datetime": "2025-09-16T06:00:00",
+    "delivery_datetime": "2025-09-17T14:00:00",
+    "equipment_type": "Flatbed",
+    "loadboard_rate": 1100,
+    "notes": "Construction materials",
+    "weight": 12000,
+    "commodity_type": "Building Materials"
+  },
+  {
+    "load_id": "L005",
+    "origin": "Seattle, WA",
+    "destination": "Portland, OR",
+    "pickup_datetime": "2025-09-18T10:00:00",
+    "delivery_datetime": "2025-09-19T15:00:00",
+    "equipment_type": "Reefer",
+    "loadboard_rate": 600,
+    "notes": "Temperature controlled",
+    "weight": 5000,
+    "commodity_type": "Pharmaceuticals"
+  }
+]
